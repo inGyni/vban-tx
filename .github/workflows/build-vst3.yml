@@ -3,14 +3,14 @@ name: Build VST3 (Win/Linux/macOS)
 on:
   push:
     tags:
-      - 'v*'
+      - '*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (example: v10)'
+        description: 'Version (example: 1.0.0)'
         required: true
       notes:
-        description: 'Release notes (optional if using manual trigger)'
+        description: 'Release notes (optional)'
         required: false
 
 env:
@@ -92,42 +92,36 @@ jobs:
         path: vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
 
   release:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+      needs: build
+      runs-on: ubuntu-latest
+      permissions:
+        contents: write
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # important for reading tag messages
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0   # needed for tag messages
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/
+        - name: Download all artifacts
+          uses: actions/download-artifact@v4
+          with:
+            path: dist/
 
-      # If tag push → extract annotated tag message
-      - name: Get annotated tag message
-        if: github.event_name == 'push'
-        run: |
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          git tag -l --format='%(contents)' ${{ github.ref_name }} >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+        - name: Get release body
+          run: |
+            if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+              BODY=$(git tag -l --format='%(contents)' $GITHUB_REF_NAME)
+            else
+              BODY="${{ github.event.inputs.notes }}"
+            fi
+            echo "RELEASE_BODY=${BODY}" >> $GITHUB_ENV
 
-      # If manual → use input notes
-      - name: Use manual notes
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          echo "RELEASE_BODY=${{ github.event.inputs.notes }}" >> $GITHUB_ENV
-
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ env.PLUGIN_VERSION }}
-          name: ${{ env.PLUGIN_VERSION }}
-          body: ${{ env.RELEASE_BODY || 'Release notes not available' }}
-          files: dist/**/*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Create Release and Upload Assets
+          uses: softprops/action-gh-release@v1
+          with:
+            tag_name: v${{ env.PLUGIN_VERSION }}    # prepend v here only
+            name: v${{ env.PLUGIN_VERSION }}
+            body: ${{ env.RELEASE_BODY || 'Release notes not available' }}
+            files: dist/**/*.zip
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
