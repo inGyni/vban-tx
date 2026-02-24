@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.22)
 
 project(AUDIO_PLUGIN_EXAMPLE VERSION 0.0.1)
 
+# -----------------------------
+# Override version from CI
+# -----------------------------
+if(DEFINED PLUGIN_VERSION)
+    set(PROJECT_VERSION ${PLUGIN_VERSION})
+endif()
+
 add_subdirectory(JUCE)
 
 juce_add_plugin(VBANTX
@@ -16,20 +23,20 @@ juce_add_plugin(VBANTX
     PLUGIN_CODE Plug
 
     FORMATS VST3
-    PRODUCT_NAME "VBAN TX")
-
-juce_generate_juce_header(VBANTX)
+    PRODUCT_NAME "VBANTX"
+)
 
 target_sources(VBANTX
     PRIVATE
-        PluginProcessor.cpp)
+        PluginProcessor.cpp
+)
 
 target_compile_definitions(VBANTX
     PUBLIC
-        # JUCE_WEB_BROWSER and JUCE_USE_CURL would be on by default, but you might not need them.
-        JUCE_WEB_BROWSER=0  # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
-        JUCE_USE_CURL=0     # If you remove this, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
-        JUCE_VST3_CAN_REPLACE_VST2=0)
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0
+)
 
 target_link_libraries(VBANTX
     PRIVATE
@@ -37,4 +44,19 @@ target_link_libraries(VBANTX
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
-        juce::juce_recommended_warning_flags)
+        juce::juce_recommended_warning_flags
+)
+
+juce_generate_juce_header(VBANTX)
+
+# -----------------------------
+# Post-build commands to copy the plugin to the dist folder
+# -----------------------------
+add_custom_target(package_vst3 ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/dist"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_BINARY_DIR}/VBANTX_artefacts/$<CONFIG>/VST3/VBANTX.vst3"
+        "${CMAKE_SOURCE_DIR}/dist/VBANTX.vst3"
+    DEPENDS VBANTX
+    COMMENT "Copying VST3 bundle to dist/"
+)

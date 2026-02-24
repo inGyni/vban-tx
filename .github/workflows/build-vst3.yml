@@ -1,0 +1,70 @@
+name: Build VST3 (Win/Linux/macOS)
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  BUILD_TYPE: Release
+  PLUGIN_VERSION: ${{ github.run_number }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            generator: "Visual Studio 17 2022"
+            arch: x64
+
+          - os: ubuntu-latest
+            name: linux
+            generator: "Unix Makefiles"
+
+          - os: macos-latest
+            name: macos
+            generator: "Unix Makefiles"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    # -------------------- Checkout --------------------
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    # -------------------- Configure --------------------
+    - name: Configure (Windows)
+      if: runner.os == 'Windows'
+      run: cmake -S . -B build -G "${{ matrix.generator }}" -A ${{ matrix.arch }} -DPLUGIN_VERSION=${{ env.PLUGIN_VERSION }}
+
+    - name: Configure (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DPLUGIN_VERSION=${{ env.PLUGIN_VERSION }}
+
+    # -------------------- Build --------------------
+    - name: Build (Windows)
+      if: runner.os == 'Windows'
+      run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+    - name: Build (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: cmake --build build
+
+    # -------------------- Zip Plugin Bundle --------------------
+    - name: Zip Plugin Bundle
+      run: zip -r vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip dist
+
+    # -------------------- Delete Dist to Save space on Runner --------------------
+    - name: Clean dist folder
+      run: rm -rf dist
+    
+    # -------------------- Upload zipped artifact --------------------
+    - name: Upload VST3 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}
+        path: vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip
