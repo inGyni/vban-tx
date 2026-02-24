@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.22)
 
 project(AUDIO_PLUGIN_EXAMPLE VERSION 0.0.1)
 
-# Disable juceaide
-set(BUILD_JUCE_AIDE OFF CACHE BOOL "Disable juceaide build")
-
 # -----------------------------
 # Override version from CI
 # -----------------------------
