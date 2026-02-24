@@ -73,10 +73,6 @@ jobs:
     - name: Zip Plugin Bundle (Linux/macOS)
       if: runner.os != 'Windows'
       run: zip -r vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip dist
-
-    # -------------------- Delete Dist to Save space on Runner --------------------
-    - name: Clean dist folder
-      run: rm -rf dist
     
     # -------------------- Upload zipped artifact --------------------
     - name: Upload VST3 artifact
