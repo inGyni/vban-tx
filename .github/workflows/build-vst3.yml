@@ -19,14 +19,10 @@ jobs:
             name: windows
             generator: "Visual Studio 17 2022"
             arch: x64
-
           - os: ubuntu-latest
             name: linux
-            generator: "Unix Makefiles"
-
           - os: macos-latest
             name: macos
-            generator: "Unix Makefiles"
 
     runs-on: ${{ matrix.os }}
 
@@ -69,14 +65,33 @@ jobs:
     - name: Zip Plugin Bundle (Windows)
       if: runner.os == 'Windows'
       shell: powershell
-      run: Compress-Archive -Path dist\* -DestinationPath vban-tx-windows-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip
+      run: Compress-Archive -Path dist\* -DestinationPath vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
     - name: Zip Plugin Bundle (Linux/macOS)
       if: runner.os != 'Windows'
-      run: zip -r vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip dist
+      run: zip -r vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip dist
     
-    # -------------------- Upload zipped artifact --------------------
-    - name: Upload VST3 artifact
-      uses: actions/upload-artifact@v4
+    # -------------------- Create Release --------------------
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}
-        path: vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip
+        tag_name: v${{ env.PLUGIN_VERSION }}
+        release_name: v${{ env.PLUGIN_VERSION }}
+        draft: false
+        prerelease: false
+        body: |
+          Build for ${{ matrix.name }}
+          Commit: `${{ github.sha }}`
+
+    # -------------------- Upload Release Asset --------------------
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
+        asset_name: vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
+        asset_content_type: application/zip
