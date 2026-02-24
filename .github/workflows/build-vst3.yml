@@ -2,14 +2,20 @@ name: Build VST3 (Win/Linux/macOS)
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (example: v10)'
+        required: true
+      notes:
+        description: 'Release notes (optional if using manual trigger)'
+        required: false
 
 env:
   BUILD_TYPE: Release
-  PLUGIN_VERSION: ${{ github.run_number }}
+  PLUGIN_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -70,29 +76,51 @@ jobs:
     - name: Zip Plugin Bundle (Linux/macOS)
       if: runner.os != 'Windows'
       run: zip -r vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip dist
-    
-    # -------------------- Create Release --------------------
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ env.PLUGIN_VERSION }}
-        release_name: v${{ env.PLUGIN_VERSION }}
-        draft: false
-        prerelease: false
-        body: |
-          Build for ${{ matrix.name }}
-          Commit: `${{ github.sha }}`
 
-    # -------------------- Upload Release Asset --------------------
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # -------------------- Upload Artifact --------------------
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
-        asset_name: vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
-        asset_content_type: application/zip
+        name: vban-tx-${{ matrix.name }}
+        path: vban-tx-${{ matrix.name }}-v${{ env.PLUGIN_VERSION }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # important for reading tag messages
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      # If tag push → extract annotated tag message
+      - name: Get annotated tag message
+        if: github.event_name == 'push'
+        run: |
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          git tag -l --format='%(contents)' ${{ github.ref_name }} >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      # If manual → use input notes
+      - name: Use manual notes
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "RELEASE_BODY=${{ github.event.inputs.notes }}" >> $GITHUB_ENV
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.PLUGIN_VERSION }}
+          name: ${{ env.PLUGIN_VERSION }}
+          body: ${{ env.RELEASE_BODY }}
+          files: dist/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
