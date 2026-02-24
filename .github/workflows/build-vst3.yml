@@ -59,11 +59,12 @@ jobs:
     # -------------------- Configure --------------------
     - name: Configure (Windows)
       if: runner.os == 'Windows'
-      run: cmake -S . -B build -G "${{ matrix.generator }}" -A ${{ matrix.arch }} -DPLUGIN_VERSION=${{ env.PLUGIN_VERSION }}
+      shell: cmd
+      run: cmake -S . -B build -G "${{ matrix.generator }}" -A ${{ matrix.arch }} -DPLUGIN_VERSION="${{ env.PLUGIN_VERSION }}"
 
     - name: Configure (Linux/macOS)
       if: runner.os != 'Windows'
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DPLUGIN_VERSION=${{ env.PLUGIN_VERSION }}
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DPLUGIN_VERSION="${{ env.PLUGIN_VERSION }}"
 
     # -------------------- Build --------------------
     - name: Build (Windows)
@@ -126,7 +127,7 @@ jobs:
         with:
           tag_name: ${{ env.PLUGIN_VERSION }}
           name: ${{ env.PLUGIN_VERSION }}
-          body: ${{ env.RELEASE_BODY }}
+          body: ${{ env.RELEASE_BODY || 'Release notes not available' }}
           files: dist/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
