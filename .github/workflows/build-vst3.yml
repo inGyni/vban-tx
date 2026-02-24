@@ -50,6 +50,12 @@ jobs:
           libxinerama-dev libxrandr-dev libxrender-dev \
           libglu1-mesa-dev mesa-common-dev
 
+
+    # -------------------- Create dist folder --------------------
+    - name: Ensure dist folder exists
+      run: mkdir -p dist
+      shell: bash
+
     # -------------------- Configure --------------------
     - name: Configure (Windows)
       if: runner.os == 'Windows'
