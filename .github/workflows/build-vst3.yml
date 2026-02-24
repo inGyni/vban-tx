@@ -66,7 +66,12 @@ jobs:
       run: cmake --build build
 
     # -------------------- Zip Plugin Bundle --------------------
-    - name: Zip Plugin Bundle
+    - name: Zip Plugin Bundle (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: Compress-Archive -Path dist\* -DestinationPath vban-tx-windows-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip
+    - name: Zip Plugin Bundle (Linux/macOS)
+      if: runner.os != 'Windows'
       run: zip -r vban-tx-${{ matrix.name }}-vst3-${{ env.BUILD_TYPE }}-v${{ env.PLUGIN_VERSION }}.zip dist
 
     # -------------------- Delete Dist to Save space on Runner --------------------
